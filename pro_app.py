@@ -130,7 +130,7 @@ def ai_researcher_chatbot(query):
     except Exception as e:
         return f"❌ ERROR: Failed to generate chatbot response - {str(e)}"
 
-st.title("AI Agent For YouTube Research... ")
+st.title("AI Agent For YouuTube Research... ")
 st.sidebar.header("Settings")
 
 topic = st.sidebar.text_input("Topic", "india pak war 1971")
