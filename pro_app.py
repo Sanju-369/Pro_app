@@ -5,6 +5,16 @@ from youtube_transcript_api import YouTubeTranscriptApi
 from langchain_groq import ChatGroq
 from dotenv import load_dotenv
 
+# Secure UI: Hide Streamlit menu, footer, and GitHub edit button
+st.set_page_config(page_title="Secure App", page_icon="🔒", layout="wide")
+
+st.markdown("""
+    <style>
+    #MainMenu, header, footer {visibility: hidden;}
+    [title="Edit source"] {display: none;}
+    </style>
+""", unsafe_allow_html=True)
+
 # Load the .env file
 load_dotenv()
 api_key = os.getenv("GROQ_API_KEY")
@@ -120,7 +130,7 @@ def ai_researcher_chatbot(query):
     except Exception as e:
         return f"❌ ERROR: Failed to generate chatbot response - {str(e)}"
 
-st.title("AI Agent For YouuTube Research... ")
+st.title("AI Agent For YouTube Research... ")
 st.sidebar.header("Settings")
 
 topic = st.sidebar.text_input("Topic", "india pak war 1971")
@@ -135,15 +145,15 @@ if st.sidebar.button("Fetch Trending Videos"):
             st.write(f"Video URL: [Link]({video['video_url']})")
             st.write(f"Description: {video['description']}")
             st.text_area(f"Transcript for {video['title']}", video['content'], height=150)
-        st.subheader(" Y_T Summerizer...")
+        st.subheader(" Y_T Summarizer...")
         result = function1(all_content, titles)
-        st.write("### Summerization Of The Above Video ")
+        st.write("### Summarization Of The Above Videos ")
         st.write(result)
     else:
         st.warning("⚠️ No trending videos found.")
 
 st.sidebar.header("Y_T Researcher ")
-user_input = st.sidebar.text_area("Give Me Y_T Summerization & ask Any Question", "", height=100)
+user_input = st.sidebar.text_area("Give Me Y_T Summarization & ask Any Question", "", height=100)
 
 if st.sidebar.button("## Ask"):
     if user_input:
