@@ -15,27 +15,38 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Load the .env file
+# Load environment variables
 load_dotenv()
 api_key = os.getenv("GROQ_API_KEY")
 youtube_api_key = os.getenv("YOUTUBE_API_KEY")
 
-# Define functions
+# ✅ Secure Token Authentication
+query_params = st.experimental_get_query_params()
+token = query_params.get("token", [None])[0]
+
+if not token:
+    st.error("Unauthorized Access! Redirecting to login...")
+    st.markdown('<meta http-equiv="refresh" content="2;url=https://login-sub-id.onrender.com/index.php">', unsafe_allow_html=True)
+    st.stop()
+
+# ✅ Validate Token with PHP Backend
+php_validation_url = "https://yourwebsite.com/validate_token.php"
+response = requests.get(f"{php_validation_url}?token={token}")
+
+if response.status_code != 200 or response.text != "VALID":
+    st.error("Invalid or Expired Session! Redirecting to login...")
+    st.markdown('<meta http-equiv="refresh" content="2;url=https://yourwebsite.com/index.php">', unsafe_allow_html=True)
+    st.stop()
+
+# ✅ Define functions
 def search_youtube_topic(topic, region):
     api_key = os.getenv("YOUTUBE_API_KEY")
     if not api_key:
-        st.error("❌ ERROR: YOUTUBE_API_KEY is missing. Set it in your environment variables.")
+        st.error("❌ ERROR: YOUTUBE_API_KEY is missing.")
         return []
 
     url = "https://www.googleapis.com/youtube/v3/search"
-    params = {
-        'part': 'snippet',
-        'q': topic,
-        'maxResults': 10,  # Fixed at 10
-        'type': 'video',
-        'regionCode': region,
-        'key': api_key
-    }
+    params = {'part': 'snippet', 'q': topic, 'maxResults': 10, 'type': 'video', 'regionCode': region, 'key': api_key}
 
     try:
         response = requests.get(url, params=params, timeout=10)
@@ -82,7 +93,7 @@ def get_video_transcript(video_id):
         return "Transcript not available."
 
 def function_1(region='IN', topic=''):
-    st.write("✅ Fetching  top 5 videos Acording Views #tag etc....") 
+    st.write("✅ Fetching Top 5 Videos According to Views & Tags...") 
     trending_videos = search_youtube_topic(topic, region)
     if not trending_videos:
         st.warning("⚠️ No videos found. Exiting.")
@@ -106,31 +117,29 @@ def function_1(region='IN', topic=''):
 
 def function1(all_content, titles):
     if not all_content.strip():
-        st.warning("⚠️ No transcripts/descriptions found. Using only titles for AI generation.")
-        prompt = f"You're an expert content writer. Generate an engaging article using the following video titles: {titles}. Make it insightful, relevant, and easy to understand."
+        st.warning("⚠️ No transcripts found. Using only titles for AI generation.")
+        prompt = f"Generate an engaging article using these video titles: {titles}."
     else:
-        prompt = f"You're an expert content writer. Write a high-quality summary for these videos: {titles}. Ensure minimal keyword stuffing and make it engaging.\n\n{all_content}"
+        prompt = f"Write a high-quality summary for these videos: {titles}.\n\n{all_content}"
+
     try:
         llm = ChatGroq(model="gemma2-9b-it")
         response = llm.invoke(prompt).content
-        if response:
-            return response
-        else:
-            st.warning("⚠️ AI response is empty. Something went wrong.")
+        return response if response else "⚠️ AI content generation failed."
     except Exception as e:
         st.error(f"\n❌ ERROR: AI Model Call Failed - {str(e)}")
-    return "⚠️ AI content generation failed. Please try again."
+        return "⚠️ AI content generation failed. Please try again."
 
 def ai_researcher_chatbot(query):
     try:
         llm = ChatGroq(model="gemma2-9b-it")
-        prompt = f"As an AI researcher, answer the following question also Ask some Question Users Acording The Topic?: {query}"
+        prompt = f"Answer the following question also ask some questions according to the topic: {query}"
         response = llm.invoke(prompt).content
         return response
     except Exception as e:
         return f"❌ ERROR: Failed to generate chatbot response - {str(e)}"
 
-st.title("AI Agent For YouuTube Research... ")
+st.title("AI Agent for YouTube Research 🔍")
 st.sidebar.header("Settings")
 
 topic = st.sidebar.text_input("Topic", "india pak war 1971")
@@ -145,20 +154,20 @@ if st.sidebar.button("Fetch Trending Videos"):
             st.write(f"Video URL: [Link]({video['video_url']})")
             st.write(f"Description: {video['description']}")
             st.text_area(f"Transcript for {video['title']}", video['content'], height=150)
-        st.subheader(" Y_T Summarizer...")
+        st.subheader("YouTube Summarizer 📜")
         result = function1(all_content, titles)
-        st.write("### Summarization Of The Above Videos ")
+        st.write("### Summary of the Above Videos")
         st.write(result)
     else:
         st.warning("⚠️ No trending videos found.")
 
-st.sidebar.header("Y_T Researcher ")
-user_input = st.sidebar.text_area("Give Me Y_T Summarization & ask Any Question", "", height=100)
+st.sidebar.header("AI Researcher")
+user_input = st.sidebar.text_area("Ask AI Researcher", "", height=100)
 
-if st.sidebar.button("## Ask"):
+if st.sidebar.button("Ask"):
     if user_input:
         st.write("💬 **AI Researcher Response**")
         chatbot_response = ai_researcher_chatbot(user_input)
         st.write(chatbot_response)
     else:
-        st.warning("⚠️ Please enter a question for the AI Researcher.")
+        st.warning("⚠️ Please enter a question.")
