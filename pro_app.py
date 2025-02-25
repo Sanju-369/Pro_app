@@ -20,30 +20,31 @@ load_dotenv()
 api_key = os.getenv("GROQ_API_KEY")
 youtube_api_key = os.getenv("YOUTUBE_API_KEY")
 
-import streamlit as st
-import requests
+# ✅ Step 1: Initialize session state for token
+if "token" not in st.session_state:
+    st.session_state["token"] = None  # Initialize token in session state
 
-# ✅ Step 1: Ensure Session Token is Stored Correctly
-if "token" not in st.session_state or st.session_state.token is None:
-    query_params = st.query_params
-    token = query_params.get("token", [None])[0]
-    if token:  
-        st.session_state.token = token  # ✅ Store token persistently
+# ✅ Step 2: Retrieve token from URL parameters (only if not already set)
+query_params = st.query_params
+token = query_params.get("token", [None])[0]
 
-# ✅ Step 2: Use Stored Token for Validation
-token = st.session_state.token
+if token and st.session_state["token"] is None:
+    st.session_state["token"] = token  # Store token persistently
+
+# ✅ Step 3: Use stored token for validation
+token = st.session_state["token"]
 
 if not token:
     st.error("Unauthorized Access! Redirecting to login...")
     st.markdown('<meta http-equiv="refresh" content="2;url=https://login-sub-id.onrender.com">', unsafe_allow_html=True)
     st.stop()
 
-# ✅ Step 3: Validate Token with PHP Backend
+# ✅ Step 4: Validate Token with PHP Backend
 php_validation_url = "https://login-sub-id.onrender.com/validate_token.php"
 response = requests.get(f"{php_validation_url}?token={token}")
 
 if response.status_code != 200 or response.text.strip() != "VALID":
-    st.session_state.token = None  # ✅ Clear invalid token
+    st.session_state["token"] = None  # Clear invalid token
     st.error("Invalid or Expired Session! Redirecting to login...")
     st.markdown('<meta http-equiv="refresh" content="2;url=https://login-sub-id.onrender.com/index.php">', unsafe_allow_html=True)
     st.stop()
