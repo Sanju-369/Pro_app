@@ -20,29 +20,28 @@ load_dotenv()
 api_key = os.getenv("GROQ_API_KEY")
 youtube_api_key = os.getenv("YOUTUBE_API_KEY")
 
+import streamlit as st
+import requests
+
 # ✅ Step 1: Initialize session variables
 if "token" not in st.session_state:
     st.session_state["token"] = None
 if "validated" not in st.session_state:
     st.session_state["validated"] = False  # Prevent repeated validation
-if "redirected" not in st.session_state:
-    st.session_state["redirected"] = False  # Avoid infinite redirects
 
-# ✅ Step 2: Retrieve token from URL parameters (only once)
+# ✅ Step 2: Retrieve token from URL parameters (only if not already set)
 query_params = st.query_params
 token = query_params.get("token", [None])[0]
 
 if token and st.session_state["token"] is None:
     st.session_state["token"] = token  # Store token persistently
 
-# ✅ Step 3: Use stored token for validation
+# ✅ Step 3: Ensure token exists
 token = st.session_state["token"]
 
 if not token:
-    if not st.session_state["redirected"]:  # Prevent infinite redirection loops
-        st.session_state["redirected"] = True
-        st.error("Unauthorized Access! Redirecting to login...")
-        st.markdown('<meta http-equiv="refresh" content="2;url=https://login-sub-id.onrender.com">', unsafe_allow_html=True)
+    st.error("Unauthorized Access! Redirecting to login...")
+    st.markdown('<meta http-equiv="refresh" content="2;url=https://login-sub-id.onrender.com/index.php">', unsafe_allow_html=True)
     st.stop()
 
 # ✅ Step 4: Validate Token with PHP Backend (only if not already validated)
@@ -50,21 +49,25 @@ if not st.session_state["validated"]:
     php_validation_url = "https://login-sub-id.onrender.com/validate_token.php"
 
     try:
-        response = requests.get(f"{php_validation_url}?token={token}", timeout=5)  # Prevents hanging
+        response = requests.get(f"{php_validation_url}?token={token}", timeout=5)
         response_text = response.text.strip()
     except requests.RequestException:
         response_text = "ERROR"
 
     if response.status_code != 200 or response_text != "VALID":
-        if not st.session_state["redirected"]:
-            st.session_state["redirected"] = True
-            st.session_state["token"] = None  # Clear invalid token
-            st.error("Invalid or Expired Session! Redirecting to login...")
-            st.markdown('<meta http-equiv="refresh" content="2;url=https://login-sub-id.onrender.com/index.php">', unsafe_allow_html=True)
+        st.session_state["token"] = None  # Destroy invalid session
+        st.error("Invalid or Expired Session! Redirecting to login...")
+        st.markdown('<meta http-equiv="refresh" content="2;url=https://login-sub-id.onrender.com/index.php">', unsafe_allow_html=True)
         st.stop()
     else:
         st.session_state["validated"] = True  # ✅ Mark session as validated
 
+# ✅ Step 5: Add Logout Button
+if st.button("Logout"):
+    st.session_state["token"] = None  # Destroy session token
+    st.session_state["validated"] = False
+    st.markdown('<meta http-equiv="refresh" content="0;url=https://login-sub-id.onrender.com/logout.php">', unsafe_allow_html=True)
+    st.stop()
 
 st.success("Welcome to the Dashboard! You are authenticated.")
 
