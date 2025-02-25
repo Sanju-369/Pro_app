@@ -20,15 +20,15 @@ load_dotenv()
 api_key = os.getenv("GROQ_API_KEY")
 youtube_api_key = os.getenv("YOUTUBE_API_KEY")
 
+import streamlit as st
+import requests
+
 # ✅ Step 1: Ensure Session Token is Stored Correctly
-if "token" not in st.session_state:
-    st.session_state.token = None
-
-query_params = st.query_params
-token = query_params.get("token", [None])[0]
-
-if token and st.session_state.token is None:
-    st.session_state.token = token  # ✅ Store token persistently
+if "token" not in st.session_state or st.session_state.token is None:
+    query_params = st.query_params
+    token = query_params.get("token", [None])[0]
+    if token:  
+        st.session_state.token = token  # ✅ Store token persistently
 
 # ✅ Step 2: Use Stored Token for Validation
 token = st.session_state.token
