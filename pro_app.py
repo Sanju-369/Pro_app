@@ -44,7 +44,7 @@ response = requests.get(f"{php_validation_url}?token={token}")
 
 if response.status_code != 200 or response.text.strip() != "VALID":
     st.error("Invalid or Expired Session! Redirecting to login...")
-    st.markdown('<meta http-equiv="refresh" content="2;url=https://login-sub-id.onrender.com/index.php">', unsafe_allow_html=True)
+    st.markdown('<meta http-equiv="refresh" content="2;url=https://tube-trend.onrender.com/">', unsafe_allow_html=True)
     st.stop()
 
 # ✅ Define functions
