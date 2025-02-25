@@ -20,6 +20,8 @@ load_dotenv()
 api_key = os.getenv("GROQ_API_KEY")
 youtube_api_key = os.getenv("YOUTUBE_API_KEY")
 
+import streamlit as st
+import requests
 
 # ✅ Step 1: Initialize session state variables
 if "token" not in st.session_state:
@@ -27,46 +29,60 @@ if "token" not in st.session_state:
 if "validated" not in st.session_state:
     st.session_state["validated"] = False
 
-# ✅ Step 2: Retrieve latest token from valid-token.php
-token_response = requests.get("https://login-sub-id.onrender.com/validate_token.php?get_token")
-latest_token = token_response.text.strip()
+# ✅ Step 2: Retrieve token from URL parameters
+query_params = st.query_params
+token = query_params.get("token", [None])[0]
 
-# ✅ Step 3: Ensure token exists and is valid
-if latest_token == "INVALID":
+if token and st.session_state["token"] is None:
+    st.session_state["token"] = token  # Store token persistently
+
+# ✅ Step 3: Ensure token exists
+token = st.session_state["token"]
+
+if not token:
     st.error("Unauthorized Access! Redirecting to login...")
-    st.markdown('<meta http-equiv="refresh" content="2;url=https://tube-trend.onrender.com">', unsafe_allow_html=True)
+    st.markdown('<meta http-equiv="refresh" content="2;url=https://login-sub-id.onrender.com">', unsafe_allow_html=True)
     st.stop()
 
-# Store token in session state
-st.session_state["token"] = latest_token
+# ✅ Step 4: Always Fetch & Validate Latest Token from PHP
+php_validation_url = "https://login-sub-id.onrender.com/validate_token.php"
 
-# ✅ Step 4: Validate Token
-if not st.session_state["validated"]:
-    php_validation_url = "https://login-sub-id.onrender.com/validate_token.php?get_token"
+try:
+    response = requests.get(f"{php_validation_url}?validate_token=true", timeout=5)
+    response_text = response.text.strip()
+except requests.RequestException:
+    response_text = "ERROR"
 
-    try:
-        response = requests.get(php_validation_url, timeout=5)
-        response_text = response.text.strip()
-    except requests.RequestException:
-        response_text = "INVALID"
-
-    if response_text != latest_token:
-        st.error("Invalid or Expired Session! Redirecting to login...")
-        st.markdown('<meta http-equiv="refresh" content="2;url=https://tube-trend.onrender.com">', unsafe_allow_html=True)
-        st.stop()
-    else:
-        st.session_state["validated"] = True
-
-# ✅ Step 5: Logout Button
-if st.button("Logout"):
-    requests.get("https://login-sub-id.onrender.com/valid-token.php?logout=true")  # Destroy token
+# ✅ If the token is INVALID, force logout & redirect
+if response_text != "VALID":
     st.session_state["token"] = None
     st.session_state["validated"] = False
-    st.markdown('<meta http-equiv="refresh" content="0;url=https://tube-trend.onrender.com/">', unsafe_allow_html=True)
+    st.error("Session Expired! Redirecting to login...")
+    st.markdown('<meta http-equiv="refresh" content="2;url=https://login-sub-id.onrender.com">', unsafe_allow_html=True)
+    st.stop()
+else:
+    st.session_state["validated"] = True
+
+# ✅ Step 5: Logout Button (Destroys session & token in both PHP & Streamlit)
+if st.button("Logout"):
+    logout_url = f"{php_validation_url}?logout=true"
+    
+    try:
+        requests.get(logout_url, timeout=5)  # Call PHP to remove token
+    except requests.RequestException:
+        pass
+
+    # ✅ Destroy Streamlit session (ensures no cached token remains)
+    st.session_state["token"] = None
+    st.session_state["validated"] = False
+
+    st.markdown('<meta http-equiv="refresh" content="0;url=https://login-sub-id.onrender.com">', unsafe_allow_html=True)
     st.stop()
 
-st.title("Welcome to Your App!")
-st.write("You are successfully logged in.")
+# ✅ Protected Content: Only runs if token is valid
+st.title("🔒 Secure Streamlit App")
+st.write("Welcome! Your session is active.")
+
 
 
 # ✅ Define functions
