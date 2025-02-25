@@ -33,55 +33,53 @@ if "validated" not in st.session_state:
 query_params = st.query_params
 token = query_params.get("token", [None])[0]
 
-if token and st.session_state["token"] is None:
+if token and not st.session_state["token"]:
     st.session_state["token"] = token  # Store token persistently
 
 # ✅ Step 3: Ensure token exists
 token = st.session_state["token"]
 
 if not token:
-    st.error("Unauthorized Access! Redirecting to login...")
+    st.error("🚫 Unauthorized Access! Redirecting to login...")
     st.markdown('<meta http-equiv="refresh" content="2;url=https://login-sub-id.onrender.com">', unsafe_allow_html=True)
     st.stop()
 
-# ✅ Step 4: Always Fetch & Validate Latest Token from PHP
+# ✅ Step 4: Validate token with PHP server
 php_validation_url = "https://login-sub-id.onrender.com/validate_token.php"
 
 try:
-    response = requests.get(f"{php_validation_url}?validate_token=true", timeout=5)
+    response = requests.get(f"{php_validation_url}?validate_token={token}", timeout=5)
     response_text = response.text.strip()
+    if response_text == "VALID":
+        st.session_state["validated"] = True
+    else:
+        st.session_state["token"] = None
+        st.session_state["validated"] = False
+        st.error("❌ Session Expired! Redirecting to login...")
+        st.markdown('<meta http-equiv="refresh" content="2;url=https://login-sub-id.onrender.com">', unsafe_allow_html=True)
+        st.stop()
 except requests.RequestException:
-    response_text = "ERROR"
-
-# ✅ If the token is INVALID, force logout & redirect
-if response_text != "VALID":
-    st.session_state["token"] = None
-    st.session_state["validated"] = False
-    st.error("Session Expired! Redirecting to login...")
-    st.markdown('<meta http-equiv="refresh" content="2;url=https://login-sub-id.onrender.com">', unsafe_allow_html=True)
+    st.error("⚠️ Unable to connect to the validation server.")
     st.stop()
-else:
-    st.session_state["validated"] = True
 
-# ✅ Step 5: Logout Button (Destroys session & token in both PHP & Streamlit)
+# ✅ Step 5: Logout Button (Destroys session in both PHP & Streamlit)
 if st.button("Logout"):
-    logout_url = f"{php_validation_url}?logout=true"
+    logout_url = f"{php_validation_url}?logout={token}"
     
     try:
         requests.get(logout_url, timeout=5)  # Call PHP to remove token
     except requests.RequestException:
         pass
 
-    # ✅ Destroy Streamlit session (ensures no cached token remains)
-    st.session_state["token"] = None
-    st.session_state["validated"] = False
+    # ✅ Destroy Streamlit session
+    st.session_state.clear()
 
     st.markdown('<meta http-equiv="refresh" content="0;url=https://login-sub-id.onrender.com">', unsafe_allow_html=True)
     st.stop()
 
 # ✅ Protected Content: Only runs if token is valid
 st.title("🔒 Secure Streamlit App")
-st.write("Welcome! Your session is active.")
+st.write("✅ Welcome! Your session is active.")
 
 
 
