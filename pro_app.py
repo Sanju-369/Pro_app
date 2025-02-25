@@ -20,16 +20,15 @@ load_dotenv()
 api_key = os.getenv("GROQ_API_KEY")
 youtube_api_key = os.getenv("YOUTUBE_API_KEY")
 
-import streamlit as st
-import requests
 
-# ✅ Step 1: Initialize session variables
+
+# ✅ Step 1: Initialize session state variables
 if "token" not in st.session_state:
     st.session_state["token"] = None
 if "validated" not in st.session_state:
-    st.session_state["validated"] = False  # Prevent repeated validation
+    st.session_state["validated"] = False
 
-# ✅ Step 2: Retrieve token from URL parameters (only if not already set)
+# ✅ Step 2: Retrieve token from URL parameters
 query_params = st.query_params
 token = query_params.get("token", [None])[0]
 
@@ -44,7 +43,7 @@ if not token:
     st.markdown('<meta http-equiv="refresh" content="2;url=https://login-sub-id.onrender.com/index.php">', unsafe_allow_html=True)
     st.stop()
 
-# ✅ Step 4: Validate Token with PHP Backend (only if not already validated)
+# ✅ Step 4: Validate Token with PHP Backend
 if not st.session_state["validated"]:
     php_validation_url = "https://login-sub-id.onrender.com/validate_token.php"
 
@@ -55,21 +54,20 @@ if not st.session_state["validated"]:
         response_text = "ERROR"
 
     if response.status_code != 200 or response_text != "VALID":
-        st.session_state["token"] = None  # Destroy invalid session
+        st.session_state["token"] = None
         st.error("Invalid or Expired Session! Redirecting to login...")
         st.markdown('<meta http-equiv="refresh" content="2;url=https://login-sub-id.onrender.com/index.php">', unsafe_allow_html=True)
         st.stop()
     else:
-        st.session_state["validated"] = True  # ✅ Mark session as validated
+        st.session_state["validated"] = True
 
-# ✅ Step 5: Add Logout Button
+# ✅ Step 5: Logout Button
 if st.button("Logout"):
-    st.session_state["token"] = None  # Destroy session token
+    st.session_state["token"] = None
     st.session_state["validated"] = False
-    st.markdown('<meta http-equiv="refresh" content="0;url=https://login-sub-id.onrender.com/logout.php">', unsafe_allow_html=True)
+    st.markdown('<meta http-equiv="refresh" content="0;url=https://login-sub-id.onrender.com/index.php?logout=true">', unsafe_allow_html=True)
     st.stop()
 
-st.success("Welcome to the Dashboard! You are authenticated.")
 
 # ✅ Define functions
 def search_youtube_topic(topic, region):
