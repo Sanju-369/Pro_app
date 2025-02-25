@@ -28,13 +28,13 @@ if "validated" not in st.session_state:
     st.session_state["validated"] = False
 
 # ✅ Step 2: Retrieve latest token from valid-token.php
-token_response = requests.get("https://login-sub-id.onrender.com/valid-token.php?get_token")
+token_response = requests.get("https://login-sub-id.onrender.com/validate_token.php?get_token")
 latest_token = token_response.text.strip()
 
 # ✅ Step 3: Ensure token exists and is valid
 if latest_token == "INVALID":
     st.error("Unauthorized Access! Redirecting to login...")
-    st.markdown('<meta http-equiv="refresh" content="2;url=https://youtubetrend.com">', unsafe_allow_html=True)
+    st.markdown('<meta http-equiv="refresh" content="2;url=https://tube-trend.onrender.com">', unsafe_allow_html=True)
     st.stop()
 
 # Store token in session state
