@@ -20,9 +20,18 @@ load_dotenv()
 api_key = os.getenv("GROQ_API_KEY")
 youtube_api_key = os.getenv("YOUTUBE_API_KEY")
 
-# ✅ Secure Token Authentication
+# ✅ Secure Token Authentication with Session State
+if "token" not in st.session_state:
+    st.session_state.token = None
+
 query_params = st.query_params
 token = query_params.get("token", [None])[0]
+
+if token:
+    st.session_state.token = token
+
+# ✅ Use stored session token for validation
+token = st.session_state.token
 
 if not token:
     st.error("Unauthorized Access! Redirecting to login...")
