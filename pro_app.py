@@ -20,7 +20,8 @@ load_dotenv()
 api_key = os.getenv("GROQ_API_KEY")
 youtube_api_key = os.getenv("YOUTUBE_API_KEY")
 
-
+import streamlit as st
+import requests
 
 # ✅ Step 1: Initialize session state variables
 if "token" not in st.session_state:
@@ -43,7 +44,7 @@ if not token:
     st.markdown('<meta http-equiv="refresh" content="2;url=https://login-sub-id.onrender.com/index.php">', unsafe_allow_html=True)
     st.stop()
 
-# ✅ Step 4: Validate Token with PHP Backend
+# ✅ Step 4: Validate Token with PHP Backend (only if not already validated)
 if not st.session_state["validated"]:
     php_validation_url = "https://login-sub-id.onrender.com/validate_token.php"
 
@@ -55,6 +56,7 @@ if not st.session_state["validated"]:
 
     if response.status_code != 200 or response_text != "VALID":
         st.session_state["token"] = None
+        st.session_state["validated"] = False
         st.error("Invalid or Expired Session! Redirecting to login...")
         st.markdown('<meta http-equiv="refresh" content="2;url=https://login-sub-id.onrender.com/index.php">', unsafe_allow_html=True)
         st.stop()
@@ -67,6 +69,10 @@ if st.button("Logout"):
     st.session_state["validated"] = False
     st.markdown('<meta http-equiv="refresh" content="0;url=https://login-sub-id.onrender.com/index.php?logout=true">', unsafe_allow_html=True)
     st.stop()
+
+# ✅ Step 6: Display Main Content (Only for Valid Users)
+st.success("Welcome to the Streamlit App!")
+st.write("You have successfully logged in.")
 
 
 # ✅ Define functions
