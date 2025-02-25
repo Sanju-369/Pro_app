@@ -42,7 +42,7 @@ st.session_state["token"] = latest_token
 
 # ✅ Step 4: Validate Token
 if not st.session_state["validated"]:
-    php_validation_url = "https://login-sub-id.onrender.com/valid-token.php?get_token"
+    php_validation_url = "https://login-sub-id.onrender.com/validate_token.php?get_token"
 
     try:
         response = requests.get(php_validation_url, timeout=5)
@@ -52,7 +52,7 @@ if not st.session_state["validated"]:
 
     if response_text != latest_token:
         st.error("Invalid or Expired Session! Redirecting to login...")
-        st.markdown('<meta http-equiv="refresh" content="2;url=https://youtubetrend.com">', unsafe_allow_html=True)
+        st.markdown('<meta http-equiv="refresh" content="2;url=https://tube-trend.onrender.com">', unsafe_allow_html=True)
         st.stop()
     else:
         st.session_state["validated"] = True
@@ -62,7 +62,7 @@ if st.button("Logout"):
     requests.get("https://login-sub-id.onrender.com/valid-token.php?logout=true")  # Destroy token
     st.session_state["token"] = None
     st.session_state["validated"] = False
-    st.markdown('<meta http-equiv="refresh" content="0;url=https://youtubetrend.com">', unsafe_allow_html=True)
+    st.markdown('<meta http-equiv="refresh" content="0;url=https://tube-trend.onrender.com/">', unsafe_allow_html=True)
     st.stop()
 
 st.title("Welcome to Your App!")
