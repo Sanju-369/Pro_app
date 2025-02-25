@@ -20,9 +20,14 @@ load_dotenv()
 api_key = os.getenv("GROQ_API_KEY")
 youtube_api_key = os.getenv("YOUTUBE_API_KEY")
 
-# ✅ Step 1: Initialize session state for token (Prevents AttributeError)
+import streamlit as st
+import requests
+
+# ✅ Step 1: Initialize session state variables (Prevents "AttributeError")
 if "token" not in st.session_state:
     st.session_state["token"] = None  # Ensure token is initialized
+if "redirected" not in st.session_state:
+    st.session_state["redirected"] = False  # Prevent multiple redirects
 
 # ✅ Step 2: Retrieve token from URL parameters (only if not already set)
 query_params = st.query_params
@@ -35,24 +40,24 @@ if token and st.session_state["token"] is None:
 token = st.session_state["token"]
 
 if not token:
-    if "redirecting" not in st.session_state:  # Prevent multiple redirects
-        st.session_state["redirecting"] = True
+    if not st.session_state["redirected"]:  # Prevent infinite redirection
+        st.session_state["redirected"] = True
         st.error("Unauthorized Access! Redirecting to login...")
         st.markdown('<meta http-equiv="refresh" content="2;url=https://login-sub-id.onrender.com">', unsafe_allow_html=True)
     st.stop()
 
-# ✅ Step 4: Validate Token with PHP Backend
+# ✅ Step 4: Validate Token with PHP Backend (with error handling)
 php_validation_url = "https://login-sub-id.onrender.com/validate_token.php"
 
 try:
-    response = requests.get(f"{php_validation_url}?token={token}", timeout=5)  # Timeout prevents hanging requests
+    response = requests.get(f"{php_validation_url}?token={token}", timeout=5)  # Prevents hanging requests
     response_text = response.text.strip()
 except requests.RequestException:
     response_text = "ERROR"
 
 if response.status_code != 200 or response_text != "VALID":
-    if "redirecting" not in st.session_state:  # Prevent multiple redirects
-        st.session_state["redirecting"] = True
+    if not st.session_state["redirected"]:  # Prevent infinite redirection
+        st.session_state["redirected"] = True
         st.session_state["token"] = None  # Clear invalid token
         st.error("Invalid or Expired Session! Redirecting to login...")
         st.markdown('<meta http-equiv="refresh" content="2;url=https://login-sub-id.onrender.com/index.php">', unsafe_allow_html=True)
