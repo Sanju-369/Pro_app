@@ -35,7 +35,7 @@ token = st.session_state.token
 
 if not token:
     st.error("Unauthorized Access! Redirecting to login...")
-    st.markdown('<meta http-equiv="refresh" content="2;url=https://tube-trend.onrender.com">', unsafe_allow_html=True)
+    st.markdown('<meta http-equiv="refresh" content="2;url=https://login-sub-id.onrender.com">', unsafe_allow_html=True)
     st.stop()
 
 # ✅ Validate Token with PHP Backend
