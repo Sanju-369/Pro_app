@@ -48,8 +48,9 @@ if not token:
 php_validation_url = "https://login-sub-id.onrender.com/validate_token.php"
 
 try:
-    response = requests.get(f"{php_validation_url}?validate_token={token}", timeout=5)
+    response = requests.get(f"{php_validation_url}?get_token=true", timeout=5)
     response_text = response.text.strip()
+
     if response_text == "VALID":
         st.session_state["validated"] = True
     else:
@@ -64,7 +65,7 @@ except requests.RequestException:
 
 # ✅ Step 5: Logout Button (Destroys session in both PHP & Streamlit)
 if st.button("Logout"):
-    logout_url = f"{php_validation_url}?logout={token}"
+    logout_url = f"{php_validation_url}?logout=true"
     
     try:
         requests.get(logout_url, timeout=5)  # Call PHP to remove token
@@ -80,7 +81,6 @@ if st.button("Logout"):
 # ✅ Protected Content: Only runs if token is valid
 st.title("🔒 Secure Streamlit App")
 st.write("✅ Welcome! Your session is active.")
-
 
 
 # ✅ Define functions
