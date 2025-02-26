@@ -23,91 +23,99 @@ youtube_api_key = os.getenv("YOUTUBE_API_KEY")
 import streamlit as st
 import requests
 
-# --- Step 1: Initialize session state variables ---
+# -------------------------------------------------------------------
+# Step 1: Initialize session state variables
 if "token" not in st.session_state:
     st.session_state["token"] = None
 if "validated" not in st.session_state:
     st.session_state["validated"] = False
 
-# --- Step 2: Retrieve token from URL parameters (if provided on initial login) ---
+# -------------------------------------------------------------------
+# Step 2: Retrieve token from URL parameters on first load
+# (This is necessary because Streamlit cannot automatically read the HTTP-only cookie)
 query_params = st.query_params
 url_token = query_params.get("token", [None])[0]
 
-if url_token:
+# If a token is passed in the URL and no token is stored, use it
+if url_token and not st.session_state["token"]:
     st.session_state["token"] = url_token
-    st.session_state["validated"] = False  # New token, so reset validation
+    # Immediately redirect to remove token from the URL
+    st.experimental_set_query_params()
 
-# --- Step 3: If no token is stored in session, try fetching validation via PHP (which reads from cookie) ---
-if not st.session_state["token"]:
-    php_validation_url = "https://login-sub-id.onrender.com/validate_token.php?get_token=true"
-    try:
-        response = requests.get(php_validation_url, timeout=5)
-        response_text = response.text.strip()
-        if response_text == "VALID":
-            # We don't reveal the actual token; set a placeholder to indicate valid session.
-            st.session_state["token"] = "VALID_PLACEHOLDER"
-            st.session_state["validated"] = True
-        else:
-            st.error("🚫 Unauthorized Access! Redirecting to login...")
-            st.markdown('<meta http-equiv="refresh" content="2;url=https://login-sub-id.onrender.com">', unsafe_allow_html=True)
-            st.stop()
-    except requests.RequestException as e:
-        st.error("⚠️ Unable to connect to the validation server.")
-        st.write(f"DEBUG: {e}")
-        st.stop()
-
-# --- Step 4: Double-check token exists ---
-if not st.session_state["token"]:
-    st.error("🚫 Unauthorized Access! Redirecting to login...")
-    st.markdown('<meta http-equiv="refresh" content="2;url=https://login-sub-id.onrender.com">', unsafe_allow_html=True)
-    st.stop()
-
-# Use token from session state
+# -------------------------------------------------------------------
+# Step 3: Ensure token exists in session state
 token = st.session_state["token"]
 
-# --- Step 5: If not yet validated, ask PHP for validation using the cookie (if a token was initially passed via URL, this ensures it's still valid) ---
-if not st.session_state["validated"]:
-    php_validation_url = "https://login-sub-id.onrender.com/validate_token.php"
-    # We pass the token in the query parameter only if it is not our placeholder.
-    # If our session token is "VALID_PLACEHOLDER", we assume it was validated.
-    if token != "VALID_PLACEHOLDER":
-        validation_url = f"{php_validation_url}?validate_token={token}"
-    else:
-        # When using the placeholder, we ask for validation without providing a token; PHP should read from cookie.
-        validation_url = f"{php_validation_url}?get_token=true"
-    
-    try:
-        response = requests.get(validation_url, timeout=5)
-        response_text = response.text.strip()
-        if response_text == "VALID":
-            st.session_state["validated"] = True
-        else:
-            st.session_state.clear()
-            st.error("❌ Session Expired or Invalid! Redirecting to login...")
-            st.markdown('<meta http-equiv="refresh" content="2;url=https://login-sub-id.onrender.com">', unsafe_allow_html=True)
-            st.stop()
-    except requests.RequestException as e:
-        st.error("⚠️ Unable to connect to the validation server.")
-        st.write(f"DEBUG: {e}")
-        st.stop()
+if not token:
+    st.error("🚫 Unauthorized Access! Redirecting to login...")
+    st.markdown(
+        '<meta http-equiv="refresh" content="2;url=https://login-sub-id.onrender.com">',
+        unsafe_allow_html=True,
+    )
+    st.stop()
 
-# --- Step 6: Logout Button in Top-Right Corner ---
-st.markdown("""
+# -------------------------------------------------------------------
+# Step 4: Validate token with PHP server
+# (The PHP script reads the token from a secure cookie that index.php set.)
+php_validation_url = "https://login-sub-id.onrender.com/validate_token.php"
+
+try:
+    # We send the token as a parameter for validation because our PHP expects it.
+    # (In production, PHP would read the token from the secure cookie.)
+    response = requests.get(f"{php_validation_url}?validate_token={token}", timeout=5)
+    response_text = response.text.strip()
+    st.write(f"DEBUG: Validation Response - `{response_text}`")  # For debugging
+    if response_text == "VALID":
+        st.session_state["validated"] = True
+    else:
+        st.session_state.clear()
+        st.error("❌ Session Expired or Invalid! Redirecting to login...")
+        st.markdown(
+            '<meta http-equiv="refresh" content="2;url=https://login-sub-id.onrender.com">',
+            unsafe_allow_html=True,
+        )
+        st.stop()
+except requests.RequestException as e:
+    st.error("⚠️ Unable to connect to the validation server.")
+    st.write(f"DEBUG: {e}")
+    st.stop()
+
+# -------------------------------------------------------------------
+# Step 5: Logout Button (Top-Right Corner)
+st.markdown(
+    """
     <style>
-        .logout-container { position: absolute; top: 10px; right: 10px; }
-        .logout-button { padding: 8px 12px; background-color: red; color: white; border: none; cursor: pointer; font-size: 14px; }
+        .logout-container {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+        }
+        .logout-button {
+            padding: 8px 12px;
+            background-color: red;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+        }
     </style>
     <div class='logout-container'>
         <form action="https://login-sub-id.onrender.com/validate_token.php?logout=true" method="get">
-            <button class="logout-button">Logout</button>
+            <button class="logout-button" type="submit">Logout</button>
         </form>
     </div>
-""", unsafe_allow_html=True)
+    """,
+    unsafe_allow_html=True,
+)
 
-# --- Step 7: Protected Content (Only if token is valid) ---
+# When the logout button is clicked, the form action will call the PHP logout.
+# (After logout, the PHP script clears the token and the cookie.)
+# Here, we also clear our Streamlit session state if the user reloads the page.
+
+# -------------------------------------------------------------------
+# Step 6: Protected Content (Only runs if token is valid)
 st.title("🔒 Secure Streamlit App")
 st.write("✅ Welcome! Your session is active.")
-
 
 
 # ✅ Define functions
