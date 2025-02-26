@@ -29,48 +29,49 @@ if "token" not in st.session_state:
 if "validated" not in st.session_state:
     st.session_state["validated"] = False
 
-# ✅ Step 2: Retrieve token from URL parameters
+# ✅ Step 2: Retrieve token from URL parameters (only at initial login redirect)
+# (After login, index.php should set the token in the cookie and redirect without the token in URL)
 query_params = st.query_params
 url_token = query_params.get("token", [None])[0]
 
-# Always update session token if a new one is found in the URL
-if url_token and url_token != st.session_state["token"]:
+if url_token:
     st.session_state["token"] = url_token
-    st.session_state["validated"] = False  # Reset validation status for new token
 
-# ✅ Step 3: Ensure token exists before proceeding
-token = st.session_state["token"]
-
-if not token:
+# ✅ Step 3: Ensure token exists in session state
+if not st.session_state["token"]:
     st.error("🚫 Unauthorized Access! Redirecting to login...")
-    st.markdown('<meta http-equiv="refresh" content="2;url=https://login-sub-id.onrender.com">', unsafe_allow_html=True)
+    st.markdown('<meta http-equiv="refresh" content="0;url=https://login-sub-id.onrender.com">', unsafe_allow_html=True)
     st.stop()
 
-# ✅ Step 4: Validate token with PHP server
+# Retrieve the token from session state
+token = st.session_state["token"]
+
+# ✅ Step 4: Validate token with PHP server using Cookie header
 php_validation_url = "https://login-sub-id.onrender.com/validate_token.php"
+headers = {"Cookie": f"auth_token={token}"}
 
-if not st.session_state["validated"]:  # Only validate if not already validated
-    try:
-        response = requests.get(f"{php_validation_url}?validate_token={token}", timeout=5)
-        response_text = response.text.strip()
+try:
+    # Send the request to validate the token using the cookie
+    response = requests.get(f"{php_validation_url}?get_token=true", headers=headers, timeout=5)
+    response_text = response.text.strip()
+except requests.RequestException as e:
+    st.error("⚠️ Unable to connect to the validation server.")
+    st.write(f"DEBUG: {e}")
+    st.stop()
 
-        if response_text == "VALID":
-            st.session_state["validated"] = True
-        else:
-            st.session_state["token"] = None
-            st.session_state["validated"] = False
-            st.error("❌ Session Expired! Redirecting to login...")
-            st.markdown('<meta http-equiv="refresh" content="2;url=https://login-sub-id.onrender.com">', unsafe_allow_html=True)
-            st.stop()
-    except requests.RequestException:
-        st.error("⚠️ Unable to connect to the validation server.")
-        st.stop()
+if response_text != "VALID":
+    st.session_state.clear()
+    st.error("❌ Session Expired or Invalid! Redirecting to login...")
+    st.markdown('<meta http-equiv="refresh" content="0;url=https://login-sub-id.onrender.com">', unsafe_allow_html=True)
+    st.stop()
+else:
+    st.session_state["validated"] = True
 
-# ✅ Step 5: Logout Button (Top-Right Corner, Expires Token Immediately)
+# ✅ Step 5: Logout Button in Top-Right Corner
 st.markdown("""
     <style>
         .logout-container { position: absolute; top: 10px; right: 10px; }
-        .logout-button { padding: 8px 12px; background-color: red; color: white; border: none; cursor: pointer; }
+        .logout-button { padding: 8px 12px; background-color: red; color: white; border: none; cursor: pointer; font-size: 14px; }
     </style>
     <div class='logout-container'>
         <form action="https://login-sub-id.onrender.com/validate_token.php?logout=true" method="get">
