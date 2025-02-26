@@ -31,26 +31,24 @@ if "validated" not in st.session_state:
 
 # ✅ Step 2: Retrieve token from URL parameters
 query_params = st.query_params
-token = query_params.get("token", [None])[0]
+url_token = query_params.get("token", [None])[0]
 
-if token and not st.session_state["token"]:
-    st.session_state["token"] = token  # Store token persistently
+if url_token:
+    st.session_state["token"] = url_token  # Store the latest token persistently
 
 # ✅ Step 3: Ensure token exists
-token = st.session_state["token"]
-
-if not token:
+if not st.session_state["token"]:
     st.error("🚫 Unauthorized Access! Redirecting to login...")
     st.markdown('<meta http-equiv="refresh" content="2;url=https://login-sub-id.onrender.com">', unsafe_allow_html=True)
     st.stop()
 
-# ✅ Step 4: Validate token with PHP server
+token = st.session_state["token"]
 php_validation_url = "https://login-sub-id.onrender.com/validate_token.php"
 
+# ✅ Step 4: Validate token with PHP server
 try:
-    response = requests.get(f"{php_validation_url}?get_token=true", timeout=5)
+    response = requests.get(f"{php_validation_url}?validate_token={token}", timeout=5)
     response_text = response.text.strip()
-
     if response_text == "VALID":
         st.session_state["validated"] = True
     else:
@@ -63,24 +61,28 @@ except requests.RequestException:
     st.error("⚠️ Unable to connect to the validation server.")
     st.stop()
 
-# ✅ Step 5: Logout Button (Destroys session in both PHP & Streamlit)
-if st.button("Logout"):
+# ✅ Step 5: Logout Button (Top Right Corner, Expires Token Immediately)
+st.markdown("""
+    <style>
+        .logout-button { position: absolute; top: 10px; right: 10px; }
+    </style>
+""", unsafe_allow_html=True)
+
+if st.button("Logout", key="logout", help="Click to log out", use_container_width=True):
     logout_url = f"{php_validation_url}?logout=true"
-    
     try:
         requests.get(logout_url, timeout=5)  # Call PHP to remove token
     except requests.RequestException:
         pass
-
-    # ✅ Destroy Streamlit session
+    
     st.session_state.clear()
-
     st.markdown('<meta http-equiv="refresh" content="0;url=https://login-sub-id.onrender.com">', unsafe_allow_html=True)
     st.stop()
 
 # ✅ Protected Content: Only runs if token is valid
 st.title("🔒 Secure Streamlit App")
 st.write("✅ Welcome! Your session is active.")
+
 
 
 # ✅ Define functions
