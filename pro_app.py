@@ -34,8 +34,9 @@ query_params = st.query_params
 url_token = query_params.get("token", [None])[0]
 
 # Always update session token if a new one is found in the URL
-if url_token:
+if url_token and url_token != st.session_state["token"]:
     st.session_state["token"] = url_token
+    st.session_state["validated"] = False  # Reset validation status for new token
 
 # ✅ Step 3: Ensure token exists before proceeding
 token = st.session_state["token"]
@@ -48,22 +49,22 @@ if not token:
 # ✅ Step 4: Validate token with PHP server
 php_validation_url = "https://login-sub-id.onrender.com/validate_token.php"
 
-try:
-    validation_url = f"{php_validation_url}?validate_token={token}"
-    response = requests.get(validation_url, timeout=5)
-    response_text = response.text.strip()
+if not st.session_state["validated"]:  # Only validate if not already validated
+    try:
+        response = requests.get(f"{php_validation_url}?validate_token={token}", timeout=5)
+        response_text = response.text.strip()
 
-    if response_text == "VALID":
-        st.session_state["validated"] = True
-    else:
-        st.session_state["token"] = None
-        st.session_state["validated"] = False
-        st.error("❌ Session Expired! Redirecting to login...")
-        st.markdown('<meta http-equiv="refresh" content="2;url=https://login-sub-id.onrender.com">', unsafe_allow_html=True)
+        if response_text == "VALID":
+            st.session_state["validated"] = True
+        else:
+            st.session_state["token"] = None
+            st.session_state["validated"] = False
+            st.error("❌ Session Expired! Redirecting to login...")
+            st.markdown('<meta http-equiv="refresh" content="2;url=https://login-sub-id.onrender.com">', unsafe_allow_html=True)
+            st.stop()
+    except requests.RequestException:
+        st.error("⚠️ Unable to connect to the validation server.")
         st.stop()
-except requests.RequestException:
-    st.error("⚠️ Unable to connect to the validation server.")
-    st.stop()
 
 # ✅ Step 5: Logout Button (Top-Right Corner, Expires Token Immediately)
 st.markdown("""
@@ -81,6 +82,7 @@ st.markdown("""
 # ✅ Protected Content: Only runs if token is valid
 st.title("🔒 Secure Streamlit App")
 st.write("✅ Welcome! Your session is active.")
+
 
 
 # ✅ Define functions
