@@ -23,10 +23,10 @@ youtube_api_key = os.getenv("YOUTUBE_API_KEY")
 import streamlit as st
 import psycopg2
 import os
-import time  # For getting current timestamp
+import time  # For UNIX timestamp
 
 # -------------------------------
-# Step 1: Database Connection using URL
+# Step 1: Database Connection
 DATABASE_URL = "postgresql://sam_ttbj_user:ELmECV1xOPM5DmcIp5mR5y2zkBCBu5Oc@dpg-cuv9sadsvqrc73btnrcg-a.singapore-postgres.render.com/sam_ttbj"
 
 try:
@@ -34,15 +34,15 @@ try:
     cur = conn.cursor()
 except Exception as e:
     st.error("❌ Database Connection Failed!")
-    st.write(f"DEBUG: {e}")  # Remove this in production
+    st.write(f"DEBUG: {e}")  # Debugging output
     st.stop()
 
 # -------------------------------
-# Retrieve token from URL
+# Step 2: Retrieve Token from URL Parameters
 query_params = st.query_params
 token = query_params.get("token", [None])[0]
 
-st.write(f"DEBUG: Retrieved Token - `{token}`")  # Debugging line
+st.write(f"DEBUG: Retrieved Token - `{token}`")  # Debugging output
 
 if not token:
     st.error("🚫 Unauthorized Access! Redirecting...")
@@ -52,20 +52,22 @@ if not token:
     )
     st.stop()
 
-
 # -------------------------------
 # Step 3: Validate Token in PostgreSQL
 try:
     cur.execute("SELECT expiry FROM tokens WHERE token = %s", (token,))
     result = cur.fetchone()
+    st.write(f"DEBUG: Token Expiry from DB - `{result}`")  # Debugging output
 except Exception as e:
     st.error("❌ Error fetching token data!")
-    st.write(f"DEBUG: {e}")  # Remove in production
+    st.write(f"DEBUG: {e}")  # Debugging output
     st.stop()
 
 # Check if token is valid and not expired
-current_time = int(time.time())  # Get current timestamp
-if not result or result[0] < current_time:
+current_time = int(time.time())  # Get current UNIX timestamp
+st.write(f"DEBUG: Current Time - `{current_time}`")  # Debugging output
+
+if not result or int(result[0]) < current_time:  # Ensure expiry is int
     st.error("❌ Session Expired! Redirecting...")
     st.markdown(
         '<meta http-equiv="refresh" content="2;url=https://tube-trend.onrender.com">',
@@ -86,7 +88,7 @@ if st.button("Logout"):
         conn.commit()
     except Exception as e:
         st.error("❌ Logout Failed!")
-        st.write(f"DEBUG: {e}")  # Remove in production
+        st.write(f"DEBUG: {e}")  # Debugging output
         st.stop()
 
     st.success("Logged out! Redirecting...")
@@ -95,7 +97,6 @@ if st.button("Logout"):
         unsafe_allow_html=True,
     )
     st.stop()
-
 
 
 # ✅ Define functions
