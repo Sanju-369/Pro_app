@@ -38,9 +38,11 @@ except Exception as e:
     st.stop()
 
 # -------------------------------
-# Step 2: Retrieve Token from URL Parameters
+# Retrieve token from URL
 query_params = st.query_params
 token = query_params.get("token", [None])[0]
+
+st.write(f"DEBUG: Retrieved Token - `{token}`")  # Debugging line
 
 if not token:
     st.error("🚫 Unauthorized Access! Redirecting...")
@@ -49,6 +51,7 @@ if not token:
         unsafe_allow_html=True,
     )
     st.stop()
+
 
 # -------------------------------
 # Step 3: Validate Token in PostgreSQL
