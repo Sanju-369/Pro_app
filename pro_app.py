@@ -21,95 +21,82 @@ api_key = os.getenv("GROQ_API_KEY")
 youtube_api_key = os.getenv("YOUTUBE_API_KEY")
 
 import streamlit as st
-import requests
+import psycopg2
+import os
+import time  # For getting current timestamp
 
 # -------------------------------
-# Step 1: Initialize session state variables
-if "token" not in st.session_state:
-    st.session_state["token"] = None
-if "validated" not in st.session_state:
-    st.session_state["validated"] = False
+# Step 1: Database Connection
+DB_CONFIG = {
+    "dbname": "sam_ttbj",
+    "user": "sam_ttbj_user",
+    "password": "ELmECV1xOPM5DmcIp5mR5y2zkBCBu5Oc",
+    "host": "dpg-cuv9sadsvqrc73btnrcg-a",
+}
+
+try:
+    conn = psycopg2.connect(**DB_CONFIG)
+    cur = conn.cursor()
+except Exception as e:
+    st.error("❌ Database Connection Failed!")
+    st.write(f"DEBUG: {e}")  # Remove this in production
+    st.stop()
 
 # -------------------------------
-# Step 2: Retrieve token from URL parameters on first load
+# Step 2: Retrieve Token from URL Parameters
 query_params = st.query_params
-url_token = query_params.get("token", [None])[0]
+token = query_params.get("token", [None])[0]
 
-# If a token is passed in the URL and no token is stored, use it
-if url_token and not st.session_state["token"]:
-    st.session_state["token"] = url_token
-    # Immediately remove token from the URL for security
-    st.experimental_set_query_params()
-
-# -------------------------------
-# Step 3: Ensure token exists in session state
-token = st.session_state["token"]
 if not token:
-    st.error("🚫 Unauthorized Access! Redirecting to login...")
+    st.error("🚫 Unauthorized Access! Redirecting...")
     st.markdown(
-        '<meta http-equiv="refresh" content="2;url=https://login-sub-id.onrender.com">',
+        '<meta http-equiv="refresh" content="2;url=https://tube-trend.onrender.com">',
         unsafe_allow_html=True,
     )
     st.stop()
 
 # -------------------------------
-# Step 4: Validate token with PHP server using secure cookie
-# The PHP script will read the token from the cookie
-php_validation_url = "https://login-sub-id.onrender.com/validate_token.php"
-headers = {"Cookie": f"auth_token={token}"}
-
+# Step 3: Validate Token in PostgreSQL
 try:
-    # Call the PHP endpoint with the query flag so PHP reads the cookie
-    response = requests.get(f"{php_validation_url}?validate_token=true", headers=headers, timeout=5)
-    response_text = response.text.strip()
-    st.write(f"DEBUG: Validation Response - `{response_text}`")  # Debug output; remove in production
-    if response_text == "VALID":
-        st.session_state["validated"] = True
-    else:
-        st.session_state.clear()
-        st.error("❌ Session Expired or Invalid! Redirecting to login...")
-        st.markdown(
-            '<meta http-equiv="refresh" content="2;url=https://login-sub-id.onrender.com">',
-            unsafe_allow_html=True,
-        )
-        st.stop()
-except requests.RequestException as e:
-    st.error("⚠️ Unable to connect to the validation server.")
-    st.write(f"DEBUG: {e}")
+    cur.execute("SELECT expiry FROM tokens WHERE token = %s", (token,))
+    result = cur.fetchone()
+except Exception as e:
+    st.error("❌ Error fetching token data!")
+    st.write(f"DEBUG: {e}")  # Remove in production
+    st.stop()
+
+# Check if token is valid and not expired
+current_time = int(time.time())  # Get current timestamp
+if not result or result[0] < current_time:
+    st.error("❌ Session Expired! Redirecting...")
+    st.markdown(
+        '<meta http-equiv="refresh" content="2;url=https://tube-trend.onrender.com">',
+        unsafe_allow_html=True,
+    )
     st.stop()
 
 # -------------------------------
-# Step 5: Logout Button (Top-Right Corner)
-st.markdown(
-    """
-    <style>
-        .logout-container { 
-            position: absolute; 
-            top: 10px; 
-            right: 10px; 
-        }
-        .logout-button { 
-            padding: 8px 12px; 
-            background-color: red; 
-            color: white; 
-            border: none; 
-            cursor: pointer; 
-            font-size: 14px; 
-        }
-    </style>
-    <div class="logout-container">
-        <form action="https://login-sub-id.onrender.com/validate_token.php?logout=true" method="get">
-            <button class="logout-button" type="submit">Logout</button>
-        </form>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
-
-# -------------------------------
-# Step 6: Protected Content (Only runs if token is valid)
+# Step 4: Display Protected Content
 st.title("🔒 Secure Streamlit App")
 st.write("✅ Welcome! Your session is active.")
+
+# -------------------------------
+# Step 5: Logout Button (Removes Token from Database)
+if st.button("Logout"):
+    try:
+        cur.execute("DELETE FROM tokens WHERE token = %s", (token,))
+        conn.commit()
+    except Exception as e:
+        st.error("❌ Logout Failed!")
+        st.write(f"DEBUG: {e}")  # Remove in production
+        st.stop()
+
+    st.success("Logged out! Redirecting...")
+    st.markdown(
+        '<meta http-equiv="refresh" content="2;url=https://your-main-site.com">',
+        unsafe_allow_html=True,
+    )
+    st.stop()
 
 
 # ✅ Define functions
