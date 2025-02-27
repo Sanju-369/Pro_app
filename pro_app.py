@@ -26,17 +26,11 @@ import os
 import time  # For getting current timestamp
 
 # -------------------------------
-# Step 1: Database Connection
-DB_CONFIG = {
-    "dbname": "sam_ttbj",
-    "user": "sam_ttbj_user",
-    "password": "ELmECV1xOPM5DmcIp5mR5y2zkBCBu5Oc",
-    "host": "dpg-cuv9sadsvqrc73btnrcg-a",
-     port="5432" 
-}
+# Step 1: Database Connection using URL
+DATABASE_URL = "postgresql://sam_ttbj_user:ELmECV1xOPM5DmcIp5mR5y2zkBCBu5Oc@dpg-cuv9sadsvqrc73btnrcg-a.singapore-postgres.render.com/sam_ttbj"
 
 try:
-    conn = psycopg2.connect(**DB_CONFIG)
+    conn = psycopg2.connect(DATABASE_URL)
     cur = conn.cursor()
 except Exception as e:
     st.error("❌ Database Connection Failed!")
@@ -98,6 +92,7 @@ if st.button("Logout"):
         unsafe_allow_html=True,
     )
     st.stop()
+
 
 
 # ✅ Define functions
