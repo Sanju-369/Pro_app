@@ -32,6 +32,7 @@ DB_CONFIG = {
     "user": "sam_ttbj_user",
     "password": "ELmECV1xOPM5DmcIp5mR5y2zkBCBu5Oc",
     "host": "dpg-cuv9sadsvqrc73btnrcg-a",
+     port="5432" 
 }
 
 try:
