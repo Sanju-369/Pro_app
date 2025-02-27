@@ -31,13 +31,14 @@ if "validated" not in st.session_state:
     st.session_state["validated"] = False
 
 # -------------------------------
-# Step 2: Retrieve token from URL parameters (on first login)
+# Step 2: Retrieve token from URL parameters on first load
 query_params = st.query_params
 url_token = query_params.get("token", [None])[0]
 
-if url_token:
+# If a token is passed in the URL and no token is stored, use it
+if url_token and not st.session_state["token"]:
     st.session_state["token"] = url_token
-    # Immediately remove the token from the URL for security
+    # Immediately remove token from the URL for security
     st.experimental_set_query_params()
 
 # -------------------------------
@@ -45,25 +46,32 @@ if url_token:
 token = st.session_state["token"]
 if not token:
     st.error("🚫 Unauthorized Access! Redirecting to login...")
-    st.markdown('<meta http-equiv="refresh" content="2;url=https://login-sub-id.onrender.com">', unsafe_allow_html=True)
+    st.markdown(
+        '<meta http-equiv="refresh" content="2;url=https://login-sub-id.onrender.com">',
+        unsafe_allow_html=True,
+    )
     st.stop()
 
 # -------------------------------
-# Step 4: Validate token with PHP server
-# We call the PHP endpoint with ?validate_token=true to trigger the validation branch.
+# Step 4: Validate token with PHP server using secure cookie
+# The PHP script will read the token from the cookie
 php_validation_url = "https://login-sub-id.onrender.com/validate_token.php"
+headers = {"Cookie": f"auth_token={token}"}
 
 try:
-    response = requests.get(f"{php_validation_url}?validate_token=true", timeout=5)
+    # Call the PHP endpoint with the query flag so PHP reads the cookie
+    response = requests.get(f"{php_validation_url}?validate_token=true", headers=headers, timeout=5)
     response_text = response.text.strip()
-    st.write(f"DEBUG: Validation Response - `{response_text}`")  # For debugging; remove in production
-
+    st.write(f"DEBUG: Validation Response - `{response_text}`")  # Debug output; remove in production
     if response_text == "VALID":
         st.session_state["validated"] = True
     else:
         st.session_state.clear()
         st.error("❌ Session Expired or Invalid! Redirecting to login...")
-        st.markdown('<meta http-equiv="refresh" content="2;url=https://login-sub-id.onrender.com">', unsafe_allow_html=True)
+        st.markdown(
+            '<meta http-equiv="refresh" content="2;url=https://login-sub-id.onrender.com">',
+            unsafe_allow_html=True,
+        )
         st.stop()
 except requests.RequestException as e:
     st.error("⚠️ Unable to connect to the validation server.")
@@ -72,7 +80,8 @@ except requests.RequestException as e:
 
 # -------------------------------
 # Step 5: Logout Button (Top-Right Corner)
-st.markdown("""
+st.markdown(
+    """
     <style>
         .logout-container { 
             position: absolute; 
@@ -93,12 +102,15 @@ st.markdown("""
             <button class="logout-button" type="submit">Logout</button>
         </form>
     </div>
-""", unsafe_allow_html=True)
+    """,
+    unsafe_allow_html=True,
+)
 
 # -------------------------------
-# Step 6: Protected Content (Only if token is valid)
+# Step 6: Protected Content (Only runs if token is valid)
 st.title("🔒 Secure Streamlit App")
 st.write("✅ Welcome! Your session is active.")
+
 
 # ✅ Define functions
 def search_youtube_topic(topic, region):
