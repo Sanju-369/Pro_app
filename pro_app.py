@@ -87,26 +87,28 @@ if not result or result[0] is None or int(result[0]) < current_time:
 
 # -------------------------------
 # Step 5: Display Protected Content
-st.title("🔒 Secure Streamlit App")
-st.write("✅ Welcome! Your session is active.")
+#st.title("🔒 Secure Streamlit App")
+#st.write("✅ Welcome! Your session is active.")
 
 # -------------------------------
-# Step 6: Logout Button (Removes Token from Database)
-if st.button("Logout"):
-    try:
-        cur.execute("DELETE FROM tokens WHERE token = %s", (token,))
-        conn.commit()
-    except Exception as e:
-        st.error("❌ Logout Failed!")
-        st.write(f"DEBUG: {e}")  # Debugging output
-        st.stop()
+# Step 5: Display Logout Button at Top Right
+col1, col2 = st.columns([8, 2])  # Create two columns
+with col2:
+    if st.button("🚪 Logout"):
+        try:
+            cur.execute("DELETE FROM tokens WHERE token = %s", (token,))
+            conn.commit()
+        except Exception as e:
+            st.error("❌ Logout Failed!")
+            st.write(f"DEBUG: {e}")  # Debugging output
+            st.stop()
 
-    st.success("Logged out! Redirecting...")
-    st.markdown(
-        '<meta http-equiv="refresh" content="2;url=https://tube-trend.onrender.com">',
-        unsafe_allow_html=True,
-    )
-    st.stop()
+        st.success("Logged out! Redirecting...")
+        st.markdown(
+            '<meta http-equiv="refresh" content="2;url=https://tube-trend.onrender.com">',
+            unsafe_allow_html=True,
+        )
+        st.stop()
 
 # ✅ Define functions
 def search_youtube_topic(topic, region):
