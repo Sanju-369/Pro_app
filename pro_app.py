@@ -40,12 +40,20 @@ except Exception as e:
 # -------------------------------
 # Step 2: Retrieve Token from URL Parameters
 query_params = st.query_params
-token = query_params.get("token", [None])[0]
+token_list = query_params.get("token", None)
+
+# Debugging: Show full URL query parameters
+st.write(f"DEBUG: Full URL Parameters - `{query_params}`")
+
+if isinstance(token_list, list):  
+    token = token_list[0]  # Extract first element if it's a list
+else:
+    token = token_list  # Use directly if not a list
 
 st.write(f"DEBUG: Retrieved Token - `{token}`")  # Debugging output
 
-# Validate token format before querying DB
-if not token or len(token) < 10:  # Ensuring a valid token length
+# Redirect if token is missing
+if not token:
     st.error("🚫 Unauthorized Access! Redirecting...")
     st.markdown(
         '<meta http-equiv="refresh" content="2;url=https://tube-trend.onrender.com">',
@@ -56,7 +64,7 @@ if not token or len(token) < 10:  # Ensuring a valid token length
 # -------------------------------
 # Step 3: Validate Token in PostgreSQL
 try:
-    cur.execute("SELECT expiry FROM tokens WHERE token = %s", (str(token),))
+    cur.execute("SELECT expiry FROM tokens WHERE token = %s", (token,))
     result = cur.fetchone()
     st.write(f"DEBUG: Token Expiry from DB - `{result}`")  # Debugging output
 except Exception as e:
@@ -65,23 +73,11 @@ except Exception as e:
     st.stop()
 
 # -------------------------------
-# Step 4: Check Token Validity
+# Step 4: Check Token Expiry
 current_time = int(time.time())  # Get current UNIX timestamp
 st.write(f"DEBUG: Current Time - `{current_time}`")  # Debugging output
 
-# Ensure token exists and has a valid expiry
-if not result or result[0] is None:
-    st.error("❌ Invalid Token! Redirecting...")
-    st.markdown(
-        '<meta http-equiv="refresh" content="2;url=https://tube-trend.onrender.com">',
-        unsafe_allow_html=True,
-    )
-    st.stop()
-
-expiry_timestamp = int(result[0])  # Convert expiry to integer
-st.write(f"DEBUG: Token Expiry Timestamp - `{expiry_timestamp}`")  # Debugging output
-
-if expiry_timestamp < current_time:
+if not result or result[0] is None or int(result[0]) < current_time:
     st.error("❌ Session Expired! Redirecting...")
     st.markdown(
         '<meta http-equiv="refresh" content="2;url=https://tube-trend.onrender.com">',
@@ -98,7 +94,7 @@ st.write("✅ Welcome! Your session is active.")
 # Step 6: Logout Button (Removes Token from Database)
 if st.button("Logout"):
     try:
-        cur.execute("DELETE FROM tokens WHERE token = %s", (str(token),))
+        cur.execute("DELETE FROM tokens WHERE token = %s", (token,))
         conn.commit()
     except Exception as e:
         st.error("❌ Logout Failed!")
