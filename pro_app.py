@@ -112,8 +112,6 @@ if st.button("Logout"):
     )
     st.stop()
 
-
-
 # ✅ Define functions
 def search_youtube_topic(topic, region):
     """Fetch trending YouTube videos for a given topic and region."""
