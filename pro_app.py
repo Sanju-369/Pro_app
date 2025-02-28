@@ -44,7 +44,8 @@ token = query_params.get("token", [None])[0]
 
 st.write(f"DEBUG: Retrieved Token - `{token}`")  # Debugging output
 
-if not token:
+# Validate token format before querying DB
+if not token or len(token) < 10:  # Ensuring a valid token length
     st.error("🚫 Unauthorized Access! Redirecting...")
     st.markdown(
         '<meta http-equiv="refresh" content="2;url=https://tube-trend.onrender.com">',
@@ -55,7 +56,7 @@ if not token:
 # -------------------------------
 # Step 3: Validate Token in PostgreSQL
 try:
-    cur.execute("SELECT expiry FROM tokens WHERE token = %s", (token,))
+    cur.execute("SELECT expiry FROM tokens WHERE token = %s", (str(token),))
     result = cur.fetchone()
     st.write(f"DEBUG: Token Expiry from DB - `{result}`")  # Debugging output
 except Exception as e:
@@ -63,11 +64,24 @@ except Exception as e:
     st.write(f"DEBUG: {e}")  # Debugging output
     st.stop()
 
-# Check if token is valid and not expired
+# -------------------------------
+# Step 4: Check Token Validity
 current_time = int(time.time())  # Get current UNIX timestamp
 st.write(f"DEBUG: Current Time - `{current_time}`")  # Debugging output
 
-if not result or int(result[0]) < current_time:  # Ensure expiry is int
+# Ensure token exists and has a valid expiry
+if not result or result[0] is None:
+    st.error("❌ Invalid Token! Redirecting...")
+    st.markdown(
+        '<meta http-equiv="refresh" content="2;url=https://tube-trend.onrender.com">',
+        unsafe_allow_html=True,
+    )
+    st.stop()
+
+expiry_timestamp = int(result[0])  # Convert expiry to integer
+st.write(f"DEBUG: Token Expiry Timestamp - `{expiry_timestamp}`")  # Debugging output
+
+if expiry_timestamp < current_time:
     st.error("❌ Session Expired! Redirecting...")
     st.markdown(
         '<meta http-equiv="refresh" content="2;url=https://tube-trend.onrender.com">',
@@ -76,15 +90,15 @@ if not result or int(result[0]) < current_time:  # Ensure expiry is int
     st.stop()
 
 # -------------------------------
-# Step 4: Display Protected Content
+# Step 5: Display Protected Content
 st.title("🔒 Secure Streamlit App")
 st.write("✅ Welcome! Your session is active.")
 
 # -------------------------------
-# Step 5: Logout Button (Removes Token from Database)
+# Step 6: Logout Button (Removes Token from Database)
 if st.button("Logout"):
     try:
-        cur.execute("DELETE FROM tokens WHERE token = %s", (token,))
+        cur.execute("DELETE FROM tokens WHERE token = %s", (str(token),))
         conn.commit()
     except Exception as e:
         st.error("❌ Logout Failed!")
@@ -93,10 +107,11 @@ if st.button("Logout"):
 
     st.success("Logged out! Redirecting...")
     st.markdown(
-        '<meta http-equiv="refresh" content="2;url=https://your-main-site.com">',
+        '<meta http-equiv="refresh" content="2;url=https://tube-trend.onrender.com">',
         unsafe_allow_html=True,
     )
     st.stop()
+
 
 
 # ✅ Define functions
